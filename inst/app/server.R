@@ -169,7 +169,7 @@ shinyServer(function(input, output, session) {
         shinyjs::alert(res)
         return(NULL)
       }
-        
+
       formulas$objects[[input$formName]] <- res
       form <- data.frame(name = input$formName,
                          y = input$f_y,
@@ -183,8 +183,15 @@ shinyServer(function(input, output, session) {
                          credible_intervals_95p = paste0(lapply(1:length(parNames),
                                                                   function(x) paste(parNames[x],
                                                                                     paste(signif(quantile(formulas$objects[[input$formName]]$beta[,x],c(0.025, 0.975)), 4), collapse = ","),
-                                                                                                             sep = " = (", collapse = ",)")), collapse = ", ", ")"))
+                                                                                                             sep = " = (", collapse = ",)")), collapse = ", ", ")"),
+                         R_squared = signif(1 - sum((colMeans(res$yPredmc) - y)^2) / sum((y-mean(y))^2), 4),
+                         p_direction = paste0(lapply(1:length(parNames),
+                                                     function(x) paste(parNames[x],
+                                                                       paste(signif(max(sum(formulas$objects[[input$formName]]$beta[,x] > 0),
+                                                                                        sum(formulas$objects[[input$formName]]$beta[,x] < 0)) / length(formulas$objects[[input$formName]]$beta[,x]), 4), collapse = ","),
+                                                                       sep = " = ", collapse = "")), collapse = ", ", ")"))
     formulas$f <- data.frame(rbind(formulas$f, form))
+    functionsFit(formulas)
 })
   
   observe({
@@ -213,10 +220,62 @@ shinyServer(function(input, output, session) {
     req(data)
     if(!(input$xVarDisp == "")){
       withProgress({
-        plotFunctions(data = data$dat, xVar = input$xVarDisp, yVar = formulas$f[formulas$f == input$dispF, "y"], obj = formulas$objects[[input$dispF]])
+        plotFunctions(data = data$dat, xVar = input$xVarDisp,
+                      yVar = formulas$f[formulas$f == input$dispF, "y"],
+                      obj = formulas$objects[[input$dispF]],
+                      ylabel = input$ylabelF, xlabel = input$xlabelF, headerLabel = input$headerLabelF,
+                      xTextSize = input$xTextSizeF, yTextSize = input$yTextSizeF,
+                      xAxisSize = input$xAxisSizeF, yAxisSize = input$yAxisSizeF,
+                      PointSize = input$PointSizeF, LineWidth = input$LineWidthF)$g
       },message = "Drawing plot")
     }
   })
+  
+  
+  observeEvent(input$exportPlotF, {
+    req(functionsFit())
+    showModal(modalDialog(
+      title = "Export Graphic",
+      footer = modalButton("OK"),
+      exportPlotPopUpUI("plotExportF"),
+      easyClose = TRUE
+    ))
+  })
+  exportPlotPopUpServer("plotExportF", 
+                        exportPlot = reactive(
+                          plotFunctions(data = data$dat, xVar = input$xVarDisp,
+                                        yVar = functionsFit()$f[functionsFit()$f == input$dispF, "y"],
+                                        obj = functionsFit()$objects[[input$dispF]],
+                                        ylabel = input$ylabelF, xlabel = input$xlabelF, headerLabel = input$headerLabelF,
+                                        xTextSize = input$xTextSizeF, yTextSize = input$yTextSizeF,
+                                        xAxisSize = input$xAxisSizeF, yAxisSize = input$yAxisSizeF,
+                                        PointSize = input$PointSizeF, LineWidth = input$LineWidthF)$g
+                        ), 
+                        filename = paste(gsub("-", "", Sys.Date()), "plotEstimates", sep = "_")
+  )
+  
+  
+  observeEvent(input$exportDataF, {
+    req(functionsFit())
+    showModal(modalDialog(
+      "Export Data",
+      easyClose = TRUE,
+      footer = modalButton("OK"),
+      exportPopUpUI("dataExportF")
+    ))
+  })
+  exportPopUpServer("dataExportF",
+                    exportData = reactive(
+                      plotFunctions(data = data$dat, xVar = input$xVarDisp,
+                                    yVar = functionsFit()$f[functionsFit()$f == input$dispF, "y"],
+                                    obj = functionsFit()$objects[[input$dispF]],
+                                    ylabel = input$ylabelF, xlabel = input$xlabelF, headerLabel = input$headerLabelF,
+                                    xTextSize = input$xTextSizeF, yTextSize = input$yTextSizeF,
+                                    xAxisSize = input$xAxisSizeF, yAxisSize = input$yAxisSizeF,
+                                    PointSize = input$PointSizeF, LineWidth = input$LineWidthF)$exportData
+                    ), 
+                    filename = paste(gsub("-", "", Sys.Date()), "yEstimatesData", sep = "_"))
+  
   
   #convergence diagnostics
   printFunDiag <- reactive({
@@ -278,13 +337,23 @@ shinyServer(function(input, output, session) {
     
   })
 
+  observe({
+    if(input$summaryType == "Category"){
+      updateSelectInput(session, "summaryPlotType",choices = c("KernelDensity", "Histogram", "Boxplot", "TimePlot"))
+    } else {
+      updateSelectInput(session, "summaryPlotType",choices = c("KernelDensity", "Histogram", "Boxplot"))
+    }
+
+  })
+  
+  
   observeEvent(input$measuresMatrix, {
     data$measures <- measureMatrixToDf(input$measuresMatrix)
   })
 
   # ESTIMATES -------------------------------------------------------------------
   yEstimates <- reactiveVal(NULL)
-
+  functionsFit <- reactiveVal(NULL)
   observeEvent(input$estimateY, {
 
     # if(!all(sapply(c(
@@ -410,7 +479,7 @@ if(is.null(input$regfunctions)){
     req(yEstimates())
     yEstimates <- yEstimates()
     
-    if (input$summaryType == "Individual"){
+    if (input$summaryType == "Sample"){
       data$exportData <-
         data.frame(Value = unlist(yEstimates$Y_Samples_Individual),
                    Individual =
@@ -446,7 +515,15 @@ if(is.null(input$regfunctions)){
   
   output$plot <- renderPlot({
     req(yEstimates())
-    plotDensities(yEstimates(), type = input$summaryType, plotType = input$summaryPlotType, nBins = input$nBins, meanType = input$meanType)
+    plotDensities(yEstimates(), type = input$summaryType, plotType = input$summaryPlotType, nBins = input$nBins, meanType = input$meanType,
+                  ylabel = input$ylabel, xlabel = input$xlabel, headerLabel = input$headerLabel,
+                  xTextSize = input$xTextSize, yTextSize = input$yTextSize,
+                  xAxisSize = input$xAxisSize, yAxisSize = input$yAxisSize,
+                  showLegend = input$showLegend,
+                  #colorPalette = "default",
+                  #fontFamily = NULL,
+                  whiskerMultiplier = input$whiskerMultiplier,
+                  boxQuantile = input$boxQuantile)
   })
   
   
@@ -479,7 +556,15 @@ if(is.null(input$regfunctions)){
                                         type = input$summaryType, 
                                         plotType = input$summaryPlotType, 
                                         nBins = input$nBins,
-                                        meanType = input$meanType)
+                                        meanType = input$meanType,
+                                        ylabel = input$ylabel, xlabel = input$xlabel, headerLabel = input$headerLabel,
+                                        xTextSize = input$xTextSize, yTextSize = input$yTextSize,
+                                        xAxisSize = input$xAxisSize, yAxisSize = input$yAxisSize,
+                                        showLegend = input$showLegend,
+                                        #colorPalette = "default",
+                                        #fontFamily = NULL,
+                                        whiskerMultiplier = input$whiskerMultiplier,
+                                        boxQuantile = input$boxQuantile)
                         ), 
                         filename = paste(gsub("-", "", Sys.Date()), "plotEstimates", sep = "_")
   )

@@ -237,7 +237,55 @@ tagList(
             "Display formulas",
             pickerInput("dispF", "Choose formula", choices = character(0)),
             plotOutput("plotDisp"),
-            selectInput("xVarDisp", "Choose x variable", choices = character(0))
+            selectInput("xVarDisp", "Choose x variable", choices = character(0)),
+            textAreaInput(
+              inputId = ("headerLabelF"),
+              label = "Header",
+              value = ""
+            ),
+            textAreaInput(
+              inputId = ("xlabelF"),
+              label = "Title x-axis",
+              value = ""
+            ),
+            textAreaInput(
+              inputId = ("ylabelF"),
+              label = "Title y-axis",
+              value = ""
+            ),
+            numericInput(
+              inputId = ("xTextSizeF"),
+              label = "Font size x-axis title",
+              value = 24
+            ),
+            numericInput(
+              inputId = ("yTextSizeF"),
+              label = "Font size y-axis title",
+              value = 24
+            ),
+            numericInput(
+              inputId = ("xAxisSizeF"),
+              label = "Font size x-axis",
+              value = 18
+            ),
+            numericInput(
+              inputId = ("yAxisSizeF"),
+              label = "Font size y-axis",
+              value = 18
+            ),
+            sliderInput(
+              inputId = "PointSizeF",
+              label = "Point size",
+              min = 0.1, max = 5,value =  1, step = 0.1
+            ),
+            sliderInput(
+              inputId = "LineWidthF",
+              label = "Line Width",
+              min = 0.1, max = 5,value =  1, step = 0.1
+            ),
+            
+            actionButton("exportPlotF", "Export Plot"),
+            actionButton("exportDataF", "Export Data")
           )
         ))
       )
@@ -372,17 +420,17 @@ tagList(
         ),
         mainPanel(
           width = 8,
+          selectInput(
+            "summaryType",
+            "Type",
+            choices = c("Sample", "Combined", "Category"),
+            selected = "Sample"
+          ),
           tabsetPanel(
             id = "summaryTabs",
             tabPanel(
               "Plot",
               value = "plotTab",
-              selectInput(
-                "summaryType",
-                "Type",
-                choices = c("Individual", "Combined", "Category"),
-                selected = "Individual"
-              ),
               conditionalPanel(
                 condition = "input.summaryType == 'Category'",
                 radioButtons(
@@ -414,6 +462,79 @@ tagList(
               
               plotOutput("plot") %>% withSpinner(color =
                                                    "#20c997"),
+              textAreaInput(
+                inputId = ("headerLabel"),
+                label = "Header",
+                value = ""
+              ),
+              textAreaInput(
+                inputId = ("xlabel"),
+                label = "Title x-axis",
+                value = ""
+              ),
+              textAreaInput(
+                inputId = ("ylabel"),
+                label = "Title y-axis",
+                value = ""
+              ),
+              numericInput(
+                inputId = ("xTextSize"),
+                label = "Font size x-axis title",
+                value = 24
+              ),
+              numericInput(
+                inputId = ("yTextSize"),
+                label = "Font size y-axis title",
+                value = 24
+              ),
+              numericInput(
+                inputId = ("xAxisSize"),
+                label = "Font size x-axis",
+                value = 18
+              ),
+              numericInput(
+                inputId = ("yAxisSize"),
+                label = "Font size y-axis",
+                value = 18
+              ),
+              checkboxInput(
+                inputId = ("showLegend"),
+                label = "Show legend",
+                value = TRUE
+              ),
+              # selectInput(
+              #   inputId = ("colorPalette"),
+              #   label = "Color Palette",
+              #   choices = c(
+              #     "default",
+              #     "white",
+              #     RColorBrewer::brewer.pal.info %>% row.names()
+              #   )
+              # ),
+              # selectInput(
+              #   inputId = ("fontFamily"),
+              #   label = "Font",
+              #   selected = NULL,
+              #   choices = availableFonts()
+              # ),
+              conditionalPanel(
+                condition = "input.summaryPlotType == 'Boxplot'",
+              sliderInput(
+                inputId = ("boxQuantile"),
+                label = "Box upper quantile",
+                value = 0.68,
+                min = 0.5,
+                max = 0.99,
+                step = 0.01
+              ),
+              sliderInput(
+                inputId = ("whiskerMultiplier"),
+                label = "Whiskers coverage interval",
+                value = 0.95,
+                min = 0.5,
+                max = 1,
+                step = 0.001
+              )),
               actionButton("exportPlot", "Export Plot"),
               actionButton("exportData", "Export Data")
             ),

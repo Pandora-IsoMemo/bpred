@@ -1,38 +1,54 @@
 #' Plot the densities estimated by \code{\link{estimateY}}.
 #'
 #' @param yEstimates An object created by \code{\link{estimateY}}. Distributions of the dependent variable.
-#' @param type A character. Show distribution by "Individual" (default), "Category" (only if supplied by yEstimates) or all individuals "Combined"?
+#' @param type A character. Show distribution by "Sample" (default), "Category" (only if supplied by yEstimates) or all individuals "Combined"?
 #' @param plotType A character. Form of presentation, choices are "KernelDensity" (default), "Histogram" or "Boxplot"
 #' @param nBins An integer Number of bins for histogram
 #' @param meanType A character "1" for total variance for category type, "2" for mean variance
+#' @param ylabel ylabel
+#' @param xlabel xlabel
+#' @param headerLabel title label
+#' @param xTextSize x label text size
+#' @param yTextSize y label text size
+#' @param xAxisSize x axis text size
+#' @param yAxisSize y axis text size
+#' @param showLegend show legend?
+#' @param whiskerMultiplier multiplier of boxplot whiskers
+#' @param boxQuantile quantile of boxplot
 #' 
 #' @return A ggplot2 object with densities
 #' @export
-plotDensities <- function(yEstimates, type = "Individual", plotType = "KernelDensity", nBins = 15, meanType = "1"){
+plotDensities <- function(yEstimates, type = "Sample", plotType = "KernelDensity", nBins = 15, meanType = "1",
+                          ylabel = "", xlabel = "", headerLabel = "",
+                          xTextSize = 24, yTextSize = 24,
+                          xAxisSize = 18, yAxisSize = 18,
+                          showLegend = TRUE,
+                          #colorPalette = "default",
+                          #fontFamily = NULL,
+                          whiskerMultiplier = 0.95,
+                          boxQuantile = 0.68){
   # fix R CMD check warnings
-  Individual <- Value <- Category <- NULL
+  Sample <- Value <- Category <- NULL
   if(class(yEstimates) != "list" && length(yEstimates) != 2){
     stop("Please define inputs and click on \"estimate Y \" first")
   }
   
-  if (type == "Individual"){
+  if (type == "Sample"){
     IndividualData <-
       data.frame(Value = unlist(yEstimates$Y_Samples_Individual),
-                 Individual =
+                 Sample =
                    factor(rep(1:length(yEstimates$Y_Samples_Individual),
                               times = unlist(lapply(yEstimates$Y_Samples_Individual, length)))))
-    g <- ggplot(IndividualData, aes(x = Value, fill = Individual)) +
-      ggtitle("Density by individual")
+    g <- ggplot(IndividualData, aes(x = Value, fill = Sample)) +
+      ggtitle("Density by sample")
     if (plotType == "KernelDensity") g <- g + geom_density(alpha = 0.25)
     if (plotType == "Histogram") g <- g +
       geom_histogram(alpha = 0.75, bins = nBins, position = "identity")
     if (plotType == "Boxplot") {
       lower <- upper <- middle <- q1 <- q3 <- group <- estimate <- iqr <- minim <- maxim <- meanEst <- q32 <- q68 <- q95 <- q05 <- NULL
-      whiskerMultiplier = 0.95
-      boxQuantile = 0.68
-      
+
       dataSummary <- IndividualData %>%
-        group_by(Individual) %>%
+        group_by(Sample) %>%
         summarise(
           # sd = sd(estimate),
           median = median(Value),
@@ -45,7 +61,7 @@ plotDensities <- function(yEstimates, type = "Individual", plotType = "KernelDen
         ungroup
       
       
-      g <- ggplot(dataSummary, aes_(x = ~ Individual, fill = ~ Individual)) #+
+      g <- ggplot(dataSummary, aes_(x = ~ Sample, fill = ~ Sample)) #+
       #ylab(ylabel) + xlab(xlabel)
       
       g <- g + geom_boxplot(mapping = aes(
@@ -117,41 +133,70 @@ plotDensities <- function(yEstimates, type = "Individual", plotType = "KernelDen
                                          times = unlist(lapply(yEstimates$Y_Samples_Category, length)))))
     }
     
-    g <- ggplot(IndividualData, aes(x = Value, fill = Category)) + ggtitle("Density by category")
-    if (plotType == "KernelDensity") g <- g + geom_density(alpha = 0.25)
-    if (plotType == "Histogram") g <- g +
-      geom_histogram(alpha = 0.75, bins = nBins, position = "identity")
-    if (plotType == "Boxplot"){ 
-      lower <- upper <- middle <- q1 <- q3 <- group <- estimate <- iqr <- minim <- maxim <- meanEst <- q32 <- q68 <- q95 <- q05 <- NULL
-      whiskerMultiplier = 0.95
-      boxQuantile = 0.68
-      dataSummary <- IndividualData %>%
-        group_by(Category) %>%
-        summarise(
-          # sd = sd(estimate),
-          median = median(Value),
-          meanEst = mean(Value),
-          q68 = quantile(Value, boxQuantile),
-          q95 = quantile(Value, 1 - ((1 - whiskerMultiplier) / 2)),
-          q32 = quantile(Value, 1- boxQuantile),
-          q05 = quantile(Value, (1 - whiskerMultiplier) / 2),
-        ) %>%
-        ungroup
+    if(plotType != "TimePlot"){
+      g <- ggplot(IndividualData, aes(x = Value, fill = Category)) + ggtitle("Density by category")
+      if (plotType == "KernelDensity") g <- g + geom_density(alpha = 0.25)
+      if (plotType == "Histogram") g <- g +
+        geom_histogram(alpha = 0.75, bins = nBins, position = "identity")
+      if (plotType == "Boxplot"){ 
+        lower <- upper <- middle <- q1 <- q3 <- group <- estimate <- iqr <- minim <- maxim <- meanEst <- q32 <- q68 <- q95 <- q05 <- NULL
+        whiskerMultiplier = 0.95
+        boxQuantile = 0.68
+        dataSummary <- IndividualData %>%
+          group_by(Category) %>%
+          summarise(
+            # sd = sd(estimate),
+            median = median(Value),
+            meanEst = mean(Value),
+            q68 = quantile(Value, boxQuantile),
+            q95 = quantile(Value, 1 - ((1 - whiskerMultiplier) / 2)),
+            q32 = quantile(Value, 1- boxQuantile),
+            q05 = quantile(Value, (1 - whiskerMultiplier) / 2),
+          ) %>%
+          ungroup
+        
+        g <- ggplot(dataSummary, aes_(x = ~ Category, fill = ~ Category)) #+
+        #ylab(ylabel) + xlab(xlabel)
+        
+        g <- g + geom_boxplot(mapping = aes(
+          lower = q32,
+          upper = q68,
+          middle = median,
+          ymin = q05,
+          ymax = q95
+        ),
+        stat = "identity"
+        ) + geom_errorbar(aes(ymin = meanEst, ymax = meanEst), linetype = "dashed", data = dataSummary)
+      }
       
-      g <- ggplot(dataSummary, aes_(x = ~ Category, fill = ~ Category)) #+
-      #ylab(ylabel) + xlab(xlabel)
       
-      g <- g + geom_boxplot(mapping = aes(
-        lower = q32,
-        upper = q68,
-        middle = median,
-        ymin = q05,
-        ymax = q95
-      ),
-      stat = "identity"
-      ) + geom_errorbar(aes(ymin = meanEst, ymax = meanEst), linetype = "dashed", data = dataSummary)
+    } else {
+      IndividualData <- IndividualData %>% group_by(Category) %>% summarise(meanEst = mean(Value), upper = quantile(Value, 0.975), lower = quantile(Value, 0.025))
+      g <- ggplot(IndividualData, aes(x = Category, y = meanEst, group = 1)) + ggtitle("Mean and 95\\% unertainty by category") + 
+        geom_line() + geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.2)
     }
+    
   }
+  g <- g + theme(
+    axis.title.x = element_text(size = xTextSize),
+    axis.title.y = element_text(size = yTextSize),
+    axis.text.x = element_text(size = xAxisSize),
+    axis.text.y = element_text(size = yAxisSize)
+  )
+  if (headerLabel != "") {
+    g <- g + labs(title = headerLabel) +
+      theme(plot.title = element_text(hjust = 0.5))
+  }
+  if (!showLegend) {
+    g <- g + theme(legend.position = "none")
+  }
+  if (ylabel != "") {
+    g <- g + ylab(ylabel)
+  }
+  if (xlabel != "") {
+    g <- g + xlab(xlabel)
+  }
+  
   g
 }
 
@@ -172,7 +217,7 @@ plotDensities <- function(yEstimates, type = "Individual", plotType = "KernelDen
 #' 
 #' @return A ggplot2 object with densities
 #' @export
-summariseEstimates <- function(yEstimates, type = "Individual",
+summariseEstimates <- function(yEstimates, type = "Sample",
                                checkDifferences = TRUE, probability = 0.95,
                                checkDifferencesReference = FALSE,
                                referenceType = "dist",
@@ -185,7 +230,7 @@ summariseEstimates <- function(yEstimates, type = "Individual",
     stop("Probability must be greater than 0 and smaller than 1")
   }
   
-  if (type == "Individual"){
+  if (type == "Sample"){
     listEst <- yEstimates$Y_Samples_Individual
     names(listEst) <- 1:length(listEst)
   }
@@ -282,11 +327,24 @@ summariseEstimates <- function(yEstimates, type = "Individual",
 #' @param xVar independent variable
 #' @param yVar dependent variable
 #' @param object object
+#' @param ylabel ylabel
+#' @param xlabel xlabel
+#' @param headerLabel title label
+#' @param xTextSize x label text size
+#' @param yTextSize y label text size
+#' @param xAxisSize x axis text size
+#' @param yAxisSize y axis text size
+#' @param PointSize point size
+#' @param LineWidth line width
 #' 
 #' @export
-plotFunctions <- function(data, xVar, yVar, object){
+plotFunctions <- function(data, xVar, yVar, object, 
+                          ylabel = "", xlabel = "", headerLabel = "",
+                          xTextSize = 24, yTextSize = 24,
+                          xAxisSize = 18, yAxisSize = 18,
+                          PointSize= 1, LineWidth = 1
+){
   xLim <- c(min(data[,xVar], na.rm = TRUE),max(data[,xVar], na.rm = TRUE))
-  plot(data[, xVar], data[,yVar], xlab = xVar, ylab = yVar)
   #predict
   form <- object$form
   varNames <- object$varNames
@@ -311,5 +369,27 @@ plotFunctions <- function(data, xVar, yVar, object){
       eval(parse(text = formNew))
     })
   })
-  lines(xPred, colMeans(predMatrix), col = "blue")
+  
+  lineData <- data.frame(xPred = xPred, yPred = colMeans(predMatrix))
+  
+  g <- ggplot(as.data.frame(data), aes_string(x = xVar, y = yVar)) + geom_point(size = PointSize) + 
+    geom_line(data = lineData, aes(x = xPred, y = yPred), size = LineWidth)
+  g <- g + theme(
+    axis.title.x = element_text(size = xTextSize),
+    axis.title.y = element_text(size = yTextSize),
+    axis.text.x = element_text(size = xAxisSize),
+    axis.text.y = element_text(size = yAxisSize)
+  )
+  if (headerLabel != "") {
+    g <- g + labs(title = headerLabel) +
+      theme(plot.title = element_text(hjust = 0.5))
+  }
+  if (ylabel != "") {
+    g <- g + ylab(ylabel)
+  }
+  if (xlabel != "") {
+    g <- g + xlab(xlabel)
+  }
+  
+  list(g = g, exportData = lineData)
 }
