@@ -16,3 +16,7 @@
 ^\..*$
 ^bin$
 ^deploy\.sh$
+^_pkgdown\.yml$
+^docs$
+^pkgdown$
+^\.github$
